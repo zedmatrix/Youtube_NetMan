@@ -1,10 +1,24 @@
 #include "mainwindow.h"
 
 void MainWindow::parseYouTube(const QJsonObject& jsonObj) {
-    QString details;
+    QJsonObject itemsObj, idObj, snippetObj, thumbObj;
 
+    // define thumbnail parsing nested object (default, high, medium)
+    auto parseThumbnails = [](const QJsonObject& thumbObj) {
+        for (auto it = thumbObj.begin(); it != thumbObj.end(); ++it) {
+            QString thumbKey = it.key();
+            QJsonValue thumbValue = it.value();
+            if (thumbKey == "default" && thumbValue.isObject()) {
+                qDebug() << "=> Default: " << thumbValue.toObject().keys();
+            } else if (thumbKey == "medium" && thumbValue.isObject()) {
+                qDebug() << "=> Medium: " << thumbValue.toObject().keys();
+            } else if (thumbKey == "high" && thumbValue.isObject()) {
+                qDebug() << "=> High: " << thumbValue.toObject().keys();
+            }
+        }
+    };
     // define lambda for parsing Object
-    auto parseObject = [](const QJsonObject& obj) {
+    auto parseObject = [&](const QJsonObject& obj) {
         for (auto it = obj.begin(); it != obj.end(); ++it) {
             QString key = it.key();
             QJsonValue value = it.value();
@@ -19,8 +33,27 @@ void MainWindow::parseYouTube(const QJsonObject& jsonObj) {
                 case QJsonValue::Undefined: type = "Undefined"; break;
                 default: type = "Unknown"; break;
             }
+            if (key == "thumbnails" && value.isObject()) {
+                thumbObj = value.toObject();
+                parseThumbnails(thumbObj);
+            }
+
             QString outText = QString("Key: %1 => %2 => Type: (%3)").arg(key).arg(value.toString()).arg(type);
             qDebug() << outText;
+        }
+    };
+    auto parseItems = [&](const QJsonObject& obj) {
+    for (auto it = obj.begin(); it != obj.end(); ++it) {
+            QString key = it.key();
+            QJsonValue value = it.value();
+            if (key == "id" && value.isObject()) {
+                idObj = value.toObject();
+                parseObject(idObj);
+
+            } else if (key == "snippet" && value.isObject()) {
+                snippetObj = value.toObject();
+                parseObject(snippetObj);
+            }
         }
     };
 
@@ -30,10 +63,12 @@ void MainWindow::parseYouTube(const QJsonObject& jsonObj) {
             if (arrValue.isObject()) {
                 QJsonObject itemsObj = arrValue.toObject();
                 qDebug() << "=> Parsing items Object <=";
-                parseObject(itemsObj);
+                parseItems(itemsObj);
+                BuildOutput(idObj, snippetObj, thumbObj);
             }
         }
     };
+
 
     // Begin code
     qDebug() << "=> Parsing jsonObj";
@@ -49,73 +84,24 @@ void MainWindow::parseYouTube(const QJsonObject& jsonObj) {
 
 
 }
-/*
-void MainWindow::parseArray(const QJsonArray& jsonArray) {
-    QVector<Videos> videoArray;
-    QJsonObject idObj, snippet, etag;
 
-    for (const QJsonValue &arrValue : jsonArray) {
-
-        if (arrValue.isObject()) {
-            QJsonObject obj = arrValue.toObject();
-            //QJsonDocument doc(obj);
-            //qDebug() << "obj: " << doc.toJson(QJsonDocument::Indented);
-
-            for (auto it = obj.begin(); it != obj.end(); ++it) {
-                QString key = it.key();
-                QJsonValue value = it.value();
-
-                if (value.isObject()) {
-                    msg = QString("Key: %1 => Object").arg(key);
-                    qDebug() << msg;
-                    if (key == "id") {
-                        idObj = obj["id"].toObject();
-                    } else if (key =="snippet") {
-                        snippet = obj["snippet"].toObject();
-                    } else if (key =="etag") {
-                        etag = obj["etag"].toObject();
-                    } else {
-                        qDebug() << "Unknown Key in Object";
-                    }
-                }
-            }
-            ParseItems(snippet, idObj, videoArray);
-        } else {
-            qDebug() << "Array element is not an object.";
-        }
-    }
-
-    msg = QString("Video Vector Size (%1)").arg(videoArray.size());
-    UpdateOutput(msg);
-}
-
-
-void MainWindow::ParseItems(const QJsonObject& snippet, const QJsonObject& idObj, QVector<Videos>& videoArray) {
-    QString Id, Title, desc, VideoTitle, videoId, videoLink, videoUrl, prettyDate;
+void MainWindow::BuildOutput(const QJsonObject& idObj, const QJsonObject& snippet, const QJsonObject& thumbObj) {
+    QString channelId, channelTitle, description, videoTitle, videoId, videoLink, videoUrl, prettyDate;
     QDateTime published;
 
-    Id = snippet["channelId"].toString();
-    Title = snippet["channelTitle"].toString();
-    desc = snippet["description"].toString();
-    VideoTitle = snippet["title"].toString();
+    channelId = snippet["channelId"].toString();
+    channelTitle = snippet["channelTitle"].toString();
+    description = snippet["description"].toString();
+    videoTitle = snippet["title"].toString();
     published = QDateTime::fromString( snippet["publishedAt"].toString() , Qt::ISODate);
     prettyDate = published.toString("ddd MMM , dd yyyy hh:mm:ss ap");
     videoId = idObj["videoId"].toString();
     videoLink = QString("https://www.youtube.com/watch?v=%1").arg(videoId);
     msg = QString("Channel: %1 [%2]\nDescription: %3\nVideo Title: %4 [%5]\nPublished: %6\n")
-            .arg(Title).arg(Id).arg(desc).arg(VideoTitle).arg(videoId).arg(prettyDate).arg(videoLink);
+            .arg(channelTitle).arg(channelId).arg(description).arg(videoTitle).arg(videoId).arg(prettyDate).arg(videoLink);
 
     UpdateOutput(msg);
     videoUrl = QString("Video Link: <a href=\"%7\">%7</a><br>").arg(videoLink);
     InsertLink(videoUrl);
 
-    //save data to vector
-    Videos v1;
-    v1.channelId = Id;
-    v1.channelTitle = Title;
-    v1.Description = desc;
-    v1.VideoId = videoId;
-    v1.VideoTitle = VideoTitle;
-    v1.Published = prettyDate;
-    videoArray.append(v1);
-}*/
+}
