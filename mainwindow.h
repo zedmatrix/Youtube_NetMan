@@ -50,8 +50,7 @@ public:
 private slots:
     QJsonDocument readAPIFile();
     void parseYouTube(const QJsonObject& jsonObj);
-    //void parseArray(const QJsonArray& jsonArray);
-    //void ParseItems(const QJsonObject& snippet, const QJsonObject& idObj, QVector<Videos>& videoArray);
+    void BuildOutput(const QJsonObject& idObj, const QJsonObject& snippet, const QJsonObject& thumbObj);
     void InsertLink(const QString &videoLink);
     void handleResponse(const QByteArray& response);
     void handleError(const QString& errorString);
